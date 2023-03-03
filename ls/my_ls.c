@@ -27,7 +27,8 @@ int color(char* path);
 void getdir_l(char* path);
 void getdir(char* path);
 void getfile(char* path);
-void upper(char** a, char** b, int n);
+void rsort(char** a, int n);
+// void upper(char** a, char** b, int n);
 int ls_a = 0;
 int ls_l = 0;
 int ls_R = 0;
@@ -37,7 +38,7 @@ int ls_i = 0;
 int ls_s = 0;
 int per_R = 0;
 int per_r = 0;
-int count=0;
+int count = 0;
 int main(int argc, char** argv) {
     // 判断-参数
     int cnt = 0;  // -参数组数
@@ -56,23 +57,30 @@ int main(int argc, char** argv) {
                 switch (argv[i][j]) {
                     case 'a':
                         ls_a = 1;
+                        printf("ls_a:%d\n", ls_a);
                         break;
                     case 'l':
+                        printf("ls_l:%d\n", ls_l);
                         ls_l = 1;
                         break;
                     case 'R':
+                        printf("ls_R:%d\n", ls_R);
                         ls_R = 1;
                         break;
                     case 'r':
+                        printf("ls_r:%d\n", ls_r);
                         ls_r = 1;
                         break;
                     case 't':
+                        printf("ls_t:%d\n", ls_t);
                         ls_t = 1;
                         break;
                     case 'i':
+                        printf("ls_i:%d\n", ls_i);
                         ls_i = 1;
                         break;
                     case 's':
+                        printf("ls_s:%d\n", ls_s);
                         ls_s = 1;
                         break;
                     default:
@@ -103,10 +111,15 @@ int main(int argc, char** argv) {
             }
         }
     }
-
+printf("%d\n",cnt);
     // 排序
-    sort(dirname, k);
-    sort(filename, l);
+    if (ls_r == 1) {
+        rsort(filename, cnt);
+        rsort(dirname, num);
+    } else {
+        sort(filename, cnt);
+        sort(dirname, num);
+    }
     // 展示函数
     if (cnt + 1 == argc) {  // 纯参数 当前文件夹
         strcpy(pathname, ".");
@@ -236,8 +249,13 @@ void getdir_l(char* path) {
         }
     }
     // 排序
-    sort(filename, cnt);
-    sort(dirname, num);
+    if (ls_r == 1) {
+        rsort(filename, cnt);
+        rsort(dirname, num);
+    } else {
+        sort(filename, cnt);
+        sort(dirname, num);
+    }
 
     // 总输出
     if (ls_R == 1) {
@@ -262,7 +280,7 @@ void getdir_l(char* path) {
             printf("%-8s ", gid_to_name(info.st_gid));
             printf("%8ld ", (long)info.st_size);
             printf("%.12s ", 4 + ctime(&info.st_mtime));
-            printf("\033[%dm%s\033[0m\n", color(pathname), filename[i]);
+            printf("\033[%d;1m%s\033[0m\n", color(pathname), filename[i]);
         }
     }
     // 递归
@@ -327,12 +345,16 @@ void getdir(char* path) {
         }
     }
     // 排序
-    sort(filename, cnt);
-    sort(dirname, num);
-
-    
+    if (ls_r == 1) {
+        rsort(filename, cnt);
+        rsort(dirname, num);
+    } else {
+        sort(filename, cnt);
+        sort(dirname, num);
+    }
 
     // 总输出
+    
     if (ls_R == 1) {
         if (per_R == 0)
             printf("%s:\n", path);
@@ -349,12 +371,16 @@ void getdir(char* path) {
         sprintf(pathname, "%s/%s", path, filename[i]);
         if (filename[i][0] == '.' || !strcmp(filename[i], ".."))
             continue;
-        printf("\033[%dm%s  ", color(pathname), filename[i]);
+        if (ls_i == 1) {
+            struct stat info;
+                stat(pathname, &info);
+                printf("%d ", info.st_ino);
+            }
+        printf("\033[%d;1m%s  ", color(pathname), filename[i]);
     }
 
     // 递归
     if (ls_R == 1) {
-        
         // 遍历目录
         for (int i = 0; i < num; i++) {
             if (!strcmp(filename[i], ".") || !strcmp(filename[i], ".."))
@@ -367,6 +393,11 @@ void getdir(char* path) {
     closedir(pdir);
 }
 void getfile(char* path) {
+    if (ls_i == 1) {
+        struct stat info;
+        stat(path, &info);
+        printf("%d ", info.st_ino);
+    }
     if (ls_l == 1) {
         struct stat info;
 
@@ -382,7 +413,7 @@ void getfile(char* path) {
             printf("%s\n", path);
         }
     } else {
-        printf("\033[%dm%s  ", color(path), path);
+        printf("\033[%d;1m%s  ", color(path), path);
     }
     per_r = 1;  // 切换
 }
@@ -408,3 +439,17 @@ int color(char* path) {
 //         }
 //     }
 // }
+void rsort(char** a, int n) {
+    char temp[201];
+    // char* b[n+1];
+    // upper(a,b,n);
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (strcmp(a[i], a[j]) < 0) {
+                strcpy(temp, a[i]);
+                strcpy(a[i], a[j]);
+                strcpy(a[j], temp);
+            }
+        }
+    }
+}
