@@ -483,7 +483,7 @@ void tsort(char** a, int n) {
     // char* b[n+1];
     // upper(a,b,n);
     struct stat info1;
-    struct stat info2;
+    struct stat info2;  
     for (int i = 0; i < n - 1; i++) {
         for (int j = i + 1; j < n; j++) {
             stat(a[i], &info1);
