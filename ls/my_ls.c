@@ -28,6 +28,10 @@ void getdir_l(char* path);
 void getdir(char* path);
 void getfile(char* path);
 void rsort(char** a, int n);
+void show_inode(char* pathname);
+void show_info(char* path, char* filename);
+void tsort(char** a, int n);
+void show_block(char* pathname);
 // void upper(char** a, char** b, int n);
 int ls_a = 0;
 int ls_l = 0;
@@ -39,6 +43,7 @@ int ls_s = 0;
 int per_R = 0;
 int per_r = 0;
 int count = 0;
+
 int main(int argc, char** argv) {
     // 判断-参数
     int cnt = 0;  // -参数组数
@@ -57,34 +62,34 @@ int main(int argc, char** argv) {
                 switch (argv[i][j]) {
                     case 'a':
                         ls_a = 1;
-                        printf("ls_a:%d\n", ls_a);
+                        // printf("ls_a:%d\n", ls_a);
                         break;
                     case 'l':
-                        printf("ls_l:%d\n", ls_l);
+                        // printf("ls_l:%d\n", ls_l);
                         ls_l = 1;
                         break;
                     case 'R':
-                        printf("ls_R:%d\n", ls_R);
+                        // printf("ls_R:%d\n", ls_R);
                         ls_R = 1;
                         break;
                     case 'r':
-                        printf("ls_r:%d\n", ls_r);
+                        // printf("ls_r:%d\n", ls_r);
                         ls_r = 1;
                         break;
                     case 't':
-                        printf("ls_t:%d\n", ls_t);
+                        // printf("ls_t:%d\n", ls_t);
                         ls_t = 1;
                         break;
                     case 'i':
-                        printf("ls_i:%d\n", ls_i);
+                        // printf("ls_i:%d\n", ls_i);
                         ls_i = 1;
                         break;
                     case 's':
-                        printf("ls_s:%d\n", ls_s);
+                        // printf("ls_s:%d\n", ls_s);
                         ls_s = 1;
                         break;
                     default:
-                        printf("ls: 不适用的选项 -- %c\n", argv[i][k]);
+                        printf("ls: 不适用的选项 -- %c\n", argv[i][j]);
                         printf("请尝试执行 \"ls --help\" 来获取更多信息。\n");
                         exit(0);
                 }
@@ -92,7 +97,7 @@ int main(int argc, char** argv) {
             cnt++;
         } else {
             // 文件名参数 排除不正确文件名 获取文件名数组
-            sprintf(pathname, "%s/%s", ".", argv[i]);
+            sprintf(pathname, "%s", argv[i]);
             if (stat(pathname, &info) == 0) {
                 if (info.st_mode & S_IFDIR) {  // 目录文件
                     dirname[k] =
@@ -111,21 +116,25 @@ int main(int argc, char** argv) {
             }
         }
     }
-printf("%d\n",cnt);
+
     // 排序
-    if (ls_r == 1) {
-        rsort(filename, cnt);
-        rsort(dirname, num);
-    } else {
-        sort(filename, cnt);
-        sort(dirname, num);
-    }
+
     // 展示函数
     if (cnt + 1 == argc) {  // 纯参数 当前文件夹
         strcpy(pathname, ".");
         pathname[1] = '\0';
         display(pathname);
     } else {
+        if (ls_r == 1) {
+            rsort(filename, cnt);
+            rsort(dirname, num);
+        } else if (ls_t == 1) {
+            tsort(filename, cnt);
+            tsort(dirname, num);
+        } else {
+            sort(filename, cnt);
+            sort(dirname, num);
+        }
         for (int i = 0; i < k; i++) {  // 文件/目录文件
             pathname[strlen(dirname[i])] = '\0';
             sprintf(pathname, "%s/%s", ".", dirname[i]);
@@ -133,7 +142,7 @@ printf("%d\n",cnt);
         }
         for (int i = 0; i < l; i++) {  // 文件/目录文件
             pathname[strlen(filename[i])] = '\0';
-            sprintf(pathname, "%s/%s", ".", filename[i]);
+            sprintf(pathname, "%s", filename[i]);
             display(pathname);
         }
     }
@@ -239,6 +248,7 @@ void getdir_l(char* path) {
             perror("stat1");
             exit(0);
         } else {
+            count += info.st_blocks / 2;
             if (info.st_mode & S_IFDIR) {
                 dirname[num] =
                     (char*)malloc(sizeof(char) * strlen(pdirent->d_name) +
@@ -252,6 +262,9 @@ void getdir_l(char* path) {
     if (ls_r == 1) {
         rsort(filename, cnt);
         rsort(dirname, num);
+    } else if (ls_t == 1) {
+        tsort(filename, cnt);
+        tsort(dirname, num);
     } else {
         sort(filename, cnt);
         sort(dirname, num);
@@ -265,23 +278,20 @@ void getdir_l(char* path) {
             printf("\n%s:\n", path);
         }
     }
-    printf("总计 \n");
+    printf("总计 %d\n", count);
+    count = 0;
     for (int i = 0; i < cnt; i++) {
         sprintf(pathname, "%s/%s", path, filename[i]);
         if (ls_a == 0)
             if (filename[i][0] == '.' || !strcmp(filename[i], ".."))
                 continue;
-        if (stat(pathname, &info) == 0) {
-            char modestr[11];
-            mode_to_letters(info.st_mode, modestr);
-            printf("%s", modestr);
-            printf("%4d ", (int)info.st_nlink);
-            printf("%-8s ", uid_to_name(info.st_uid));
-            printf("%-8s ", gid_to_name(info.st_gid));
-            printf("%8ld ", (long)info.st_size);
-            printf("%.12s ", 4 + ctime(&info.st_mtime));
-            printf("\033[%d;1m%s\033[0m\n", color(pathname), filename[i]);
+        if (ls_i == 1) {
+            show_inode(pathname);
         }
+        if (ls_s == 1) {
+            show_block(pathname);
+        }
+        show_info(pathname, filename[i]);
     }
     // 递归
     if (ls_R == 1) {
@@ -297,7 +307,7 @@ void getdir_l(char* path) {
 
         // 遍历目录
         for (int i = 0; i < num; i++) {
-            if (filename[i][0] == '.' || !strcmp(filename[i], ".."))
+            if (dirname[i][0] == '.' || !strcmp(dirname[i], ".."))
                 continue;
             sprintf(pathname, "%s/%s", path, dirname[i]);
             per_R = 1;  // 第一次递归
@@ -348,13 +358,16 @@ void getdir(char* path) {
     if (ls_r == 1) {
         rsort(filename, cnt);
         rsort(dirname, num);
+    } else if (ls_t == 1) {
+        tsort(filename, cnt);
+        tsort(dirname, num);
     } else {
         sort(filename, cnt);
         sort(dirname, num);
     }
 
     // 总输出
-    
+
     if (ls_R == 1) {
         if (per_R == 0)
             printf("%s:\n", path);
@@ -372,10 +385,14 @@ void getdir(char* path) {
         if (filename[i][0] == '.' || !strcmp(filename[i], ".."))
             continue;
         if (ls_i == 1) {
-            struct stat info;
-                stat(pathname, &info);
-                printf("%d ", info.st_ino);
-            }
+            show_inode(pathname);
+        }
+        if (ls_s == 1) {
+            show_block(pathname);
+        }
+        if (ls_l == 1) {
+            show_info(path, filename[i]);
+        }
         printf("\033[%d;1m%s  ", color(pathname), filename[i]);
     }
 
@@ -383,7 +400,7 @@ void getdir(char* path) {
     if (ls_R == 1) {
         // 遍历目录
         for (int i = 0; i < num; i++) {
-            if (!strcmp(filename[i], ".") || !strcmp(filename[i], ".."))
+            if (!strcmp(dirname[i], ".") || !strcmp(dirname[i], ".."))
                 continue;
             sprintf(pathname, "%s/%s", path, dirname[i]);
             per_R = 1;  // 第一次递归
@@ -394,24 +411,13 @@ void getdir(char* path) {
 }
 void getfile(char* path) {
     if (ls_i == 1) {
-        struct stat info;
-        stat(path, &info);
-        printf("%d ", info.st_ino);
+        show_inode(path);
+    }
+    if (ls_s == 1) {
+        show_block(path);
     }
     if (ls_l == 1) {
-        struct stat info;
-
-        if (stat(path, &info) == 0) {
-            char modestr[11];
-            mode_to_letters(info.st_mode, modestr);
-            printf("%s", modestr);
-            printf("%4d ", (int)info.st_nlink);
-            printf("%-8s ", uid_to_name(info.st_uid));
-            printf("%-8s ", gid_to_name(info.st_gid));
-            printf("%8ld ", (long)info.st_size);
-            printf("%.12s ", 4 + ctime(&info.st_mtime));
-            printf("%s\n", path);
-        }
+        show_info(path, path);
     } else {
         printf("\033[%d;1m%s  ", color(path), path);
     }
@@ -452,4 +458,46 @@ void rsort(char** a, int n) {
             }
         }
     }
+}
+void show_inode(char* pathname) {
+    struct stat info;
+    stat(pathname, &info);
+    printf("%d ", info.st_ino);
+}
+void show_info(char* path, char* filename) {
+    struct stat info;
+    if (stat(path, &info) == 0) {
+        char modestr[11];
+        mode_to_letters(info.st_mode, modestr);
+        printf("%s", modestr);
+        printf("%4d ", (int)info.st_nlink);
+        printf("%-8s ", uid_to_name(info.st_uid));
+        printf("%-8s ", gid_to_name(info.st_gid));
+        printf("%8ld ", (long)info.st_size);
+        printf("%.12s ", 4 + ctime(&info.st_mtime));
+        printf("\033[%d;1m%s\033[0m\n", color(path), filename);
+    }
+}
+void tsort(char** a, int n) {
+    char temp[201];
+    // char* b[n+1];
+    // upper(a,b,n);
+    struct stat info1;
+    struct stat info2;
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = i + 1; j < n; j++) {
+            stat(a[i], &info1);
+            stat(a[j ], &info2);
+            if (info1.st_mtim.tv_sec < info2.st_mtim.tv_sec) {
+                strcpy(temp, a[i]);
+                strcpy(a[i], a[j]);
+                strcpy(a[j], temp);
+            }
+        }
+    }
+}
+void show_block(char* pathname) {
+    struct stat info;
+    stat(pathname, &info);
+    printf("%d ", info.st_blocks / 2);
 }
