@@ -105,7 +105,7 @@ void getdir(char path[]) {
         return;
     }
     char pathname[PATH_MAX];
-    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX);
+    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX*64);
     int cnt = 0;  // 总文件名数量
 
     struct stat info;
