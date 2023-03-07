@@ -105,14 +105,14 @@ void getdir(char path[]) {
         return;
     }
     char pathname[PATH_MAX];
-    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX*64);
+    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX * 64);
     int cnt = 0;  // 总文件名数量
 
     struct stat info;
     struct dirent* pdirent = NULL;
     // 读取目录下文件->filename[cnt]->pathname
     while ((pdirent = readdir(pdir)) != NULL) {
-        if (!(ls_a == 1) && pdirent->d_name[0] == '.')
+        if ((ls_a != 1) && pdirent->d_name[0] == '.')
             continue;
         filename[cnt] =
             (char*)malloc(sizeof(char) * NAME_MAX);  // copy文件名结尾'\0'
@@ -183,7 +183,6 @@ void getdir(char path[]) {
             getdir(path_R);
         }
     }
-
     free(filename);
 }
 void getfile(char* filename) {
@@ -324,6 +323,20 @@ void sort(char** a, int n) {
         char temp[201];
         struct stat info1;
         struct stat info2;
+        if (ls_r == 1) {
+            for (int i = 0; i < n - 1; i++) {
+                for (int j = i + 1; j < n; j++) {
+                    stat(a[i], &info1);
+                    stat(a[j], &info2);
+                    if (info1.st_mtim.tv_sec > info2.st_mtim.tv_sec) {
+                        strcpy(temp, a[i]);
+                        strcpy(a[i], a[j]);
+                        strcpy(a[j], temp);
+                    }
+                }
+            }
+            return;
+        }
         for (int i = 0; i < n - 1; i++) {
             for (int j = i + 1; j < n; j++) {
                 stat(a[i], &info1);
@@ -335,6 +348,7 @@ void sort(char** a, int n) {
                 }
             }
         }
+        return;
     }
     if (ls_r == 1) {
         for (int i = 0; i < n; i++) {
@@ -346,16 +360,18 @@ void sort(char** a, int n) {
                 }
             }
         }
-    } else
-        for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                if (strcmp(a[i], a[j]) > 0) {
-                    strcpy(temp, a[i]);
-                    strcpy(a[i], a[j]);
-                    strcpy(a[j], temp);
-                }
+        return;
+    }
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (strcmp(a[i], a[j]) > 0) {
+                strcpy(temp, a[i]);
+                strcpy(a[i], a[j]);
+                strcpy(a[j], temp);
             }
         }
+    }
+    return;
 }
 void show_block(char* pathname) {
     struct stat info;
