@@ -175,6 +175,7 @@ void getdir(char path[]) {
         }
     }
     free(entry);
+    entry=NULL;
 }
 void getfile(char* filename) {
     if (ls_i == 1) {
