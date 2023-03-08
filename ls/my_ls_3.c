@@ -17,9 +17,9 @@
 // -s: –size 以块大小为单位列出所有文件的大小
 // -R: –recursive 同时列出所有子目录层
 #define SIZE 10
-typedef struct sum{
-        char filename[NAME_MAX];
-    }SUM;
+typedef struct sum {
+    char filename[NAME_MAX];
+} SUM;
 void mode_to_letters(int mode, char str[]);
 char* uid_to_name(uid_t);
 char* gid_to_name(gid_t);
@@ -78,12 +78,15 @@ int main(int argc, char** argv) {
         display(".");
         // display("/home");
     } else {
-
         for (int i = 0; i < l; i++) {  // 文件
 
             display(file[i]);
         }
-        for (int i = 0; i < k; i++) {  //目录文件
+        for (int i = 0; i < k; i++) {  // 目录文件
+            if (i >= 1)
+                printf("\n\n");
+            if (ls_R != 1)
+                printf("%s:\n", dir[i]);
 
             display(dir[i]);
         }
@@ -98,9 +101,7 @@ void getdir(char path[]) {
         return;
     }
     char pathname[PATH_MAX];
-    
-
-    SUM* entry=malloc(sizeof(SUM[PATH_MAX*64])); 
+    SUM* entry = malloc(sizeof(SUM[PATH_MAX * 64]));
     int cnt = 0;  // 总文件名数量
 
     struct stat info;
@@ -111,14 +112,13 @@ void getdir(char path[]) {
             continue;
         strcpy(entry[cnt].filename, pdirent->d_name);
         sprintf(pathname, "%s/%s", path, entry[cnt].filename);
-        if (stat(pathname, &info) == 0)
+        if (lstat(pathname, &info) == 0)
             count += info.st_blocks / 2;
         cnt++;
     }
     sort(entry, cnt);
     closedir(pdir);
     // 总输出
-
     if (ls_R == 1) {
         if (per_R == 0)
             printf("%s:\n", path);
@@ -137,7 +137,8 @@ void getdir(char path[]) {
     }
     for (int i = 0; i < cnt; i++) {
         sprintf(pathname, "%s/%s", path, entry[i].filename);
-        if (entry[i].filename[0] == '.' || !strcmp(entry[i].filename, "..") && ls_l == 0)
+        if (entry[i].filename[0] == '.' ||
+            !strcmp(entry[i].filename, "..") && ls_l == 0)
             continue;
         if (ls_i == 1) {
             show_inode(pathname);
@@ -156,8 +157,9 @@ void getdir(char path[]) {
 
     // 遍历目录
     char path_R[PATH_MAX];
-    for (int i = 0; ls_R == 1, i < cnt; i++) {
-        if (!strcmp(entry[i].filename, ".") || !strcmp(entry[i].filename, "..")) {
+    for (int i = 0; ls_R == 1 && i < cnt; i++) {
+        if (!strcmp(entry[i].filename, ".") ||
+            !strcmp(entry[i].filename, "..")) {
             free(entry[i].filename);
             continue;
         }
@@ -175,7 +177,7 @@ void getdir(char path[]) {
         }
     }
     free(entry);
-    entry=NULL;
+    entry = NULL;
 }
 void getfile(char* filename) {
     if (ls_i == 1) {
@@ -194,7 +196,7 @@ void getfile(char* filename) {
 
 void show_info(char* path, char* filename) {
     struct stat info;
-    if (stat(path, &info) == 0) {
+    if (lstat(path, &info) == 0) {
         char modestr[11];
         mode_to_letters(info.st_mode, modestr);
         printf("%s", modestr);
@@ -274,12 +276,13 @@ char* uid_to_name(uid_t uid) {
 }
 int color(char* path) {
     struct stat st;
-    stat(path, &st);
+    lstat(path, &st);
     if (S_ISDIR(st.st_mode)) {
         return 34;
     } else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
         return 32;
-    }
+    } else if (S_ISLNK(st.st_mode))
+        return 36;
     return 37;
 }
 void mode_to_letters(int mode, char str[]) {
@@ -371,6 +374,6 @@ void show_block(char* pathname) {
 }
 void show_inode(char* pathname) {
     struct stat info;
-    stat(pathname, &info);
+    lstat(pathname, &info);
     printf("%d ", info.st_ino);
 }
