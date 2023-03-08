@@ -16,12 +16,15 @@
 // -i：结合-l参数，列出每个文件的inode
 // -s: –size 以块大小为单位列出所有文件的大小
 // -R: –recursive 同时列出所有子目录层
-
+#define SIZE 10
+typedef struct sum{
+        char filename[NAME_MAX];
+    }SUM;
 void mode_to_letters(int mode, char str[]);
 char* uid_to_name(uid_t);
 char* gid_to_name(gid_t);
 void display(char* path);
-void sort(char** a, int n);
+void sort(SUM* a, int n);
 int color(char* path);
 void getdir(char* path);
 void getfile(char* path);
@@ -45,9 +48,9 @@ int main(int argc, char** argv) {
     int cnt = 0;  // -参数组数
     int num = 0;  // 文件名参数个数
     struct stat info;
+    char file[SIZE][NAME_MAX];
+    char dir[SIZE][NAME_MAX];
     char pathname[PATH_MAX];
-    char** dirname = (char**)malloc(sizeof(char*) * PATH_MAX);
-    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX);
     int k = 0,  // dirname
         l = 0;  // filename
     // 目录文件及普通文件个数
@@ -59,14 +62,10 @@ int main(int argc, char** argv) {
         } else {
             stat(argv[i], &info);
             if (info.st_mode & S_IFDIR) {  // 目录文件
-                dirname[k] =
-                    (char*)malloc(sizeof(char) * (strlen(argv[i]) + 1));
-                strcpy(dirname[k], argv[i]);
+                strcpy(dir[k], argv[i]);
                 k++;
             } else {  // 普通文件
-                filename[l] =
-                    (char*)malloc(sizeof(char) * (strlen(argv[i]) + 1));
-                strcpy(filename[l], argv[i]);
+                strcpy(file[l], argv[i]);
                 l++;
             }
         }
@@ -79,22 +78,16 @@ int main(int argc, char** argv) {
         display(".");
         // display("/home");
     } else {
-        sort(filename, l);
-        sort(dirname, k);
 
-        for (int i = 0; i < l; i++) {  // 文件/目录文件
-            pathname[strlen(filename[i])] = '\0';
-            display(filename[i]);
-            free(filename[i]);
+        for (int i = 0; i < l; i++) {  // 文件
+
+            display(file[i]);
         }
-        for (int i = 0; i < k; i++) {  // 文件/目录文件
-            pathname[strlen(dirname[i])] = '\0';
-            display(dirname[i]);
-            free(dirname[i]);
+        for (int i = 0; i < k; i++) {  //目录文件
+
+            display(dir[i]);
         }
     }
-    free(dirname);
-    free(filename);
 }
 
 void getdir(char path[]) {
@@ -105,24 +98,24 @@ void getdir(char path[]) {
         return;
     }
     char pathname[PATH_MAX];
-    char** filename = (char**)malloc(sizeof(char*) * PATH_MAX * 64);
+    
+
+    SUM* entry=malloc(sizeof(SUM[PATH_MAX*64])); 
     int cnt = 0;  // 总文件名数量
 
     struct stat info;
     struct dirent* pdirent = NULL;
-    // 读取目录下文件->filename[cnt]->pathname
+    // 读取目录下文件->entry[cnt].filename->pathname
     while ((pdirent = readdir(pdir)) != NULL) {
         if ((ls_a != 1) && pdirent->d_name[0] == '.')
             continue;
-        filename[cnt] =
-            (char*)malloc(sizeof(char) * NAME_MAX);  // copy文件名结尾'\0'
-        strcpy(filename[cnt], pdirent->d_name);
-        sprintf(pathname, "%s/%s", path, filename[cnt]);
+        strcpy(entry[cnt].filename, pdirent->d_name);
+        sprintf(pathname, "%s/%s", path, entry[cnt].filename);
         if (stat(pathname, &info) == 0)
             count += info.st_blocks / 2;
         cnt++;
     }
-    sort(filename, cnt);
+    sort(entry, cnt);
     closedir(pdir);
     // 总输出
 
@@ -143,8 +136,8 @@ void getdir(char path[]) {
         count = 0;
     }
     for (int i = 0; i < cnt; i++) {
-        sprintf(pathname, "%s/%s", path, filename[i]);
-        if (filename[i][0] == '.' || !strcmp(filename[i], "..") && ls_l == 0)
+        sprintf(pathname, "%s/%s", path, entry[i].filename);
+        if (entry[i].filename[0] == '.' || !strcmp(entry[i].filename, "..") && ls_l == 0)
             continue;
         if (ls_i == 1) {
             show_inode(pathname);
@@ -154,9 +147,9 @@ void getdir(char path[]) {
         }
 
         if (ls_l == 1) {
-            show_info(pathname, filename[i]);
+            show_info(pathname, entry[i].filename);
         } else {
-            printf("\033[%d;1m%s  \033[0m", color(pathname), filename[i]);
+            printf("\033[%d;1m%s  \033[0m", color(pathname), entry[i].filename);
         }
     }
     // 递归
@@ -164,26 +157,24 @@ void getdir(char path[]) {
     // 遍历目录
     char path_R[PATH_MAX];
     for (int i = 0; ls_R == 1, i < cnt; i++) {
-        if (!strcmp(filename[i], ".") || !strcmp(filename[i], "..")) {
-            free(filename[i]);
+        if (!strcmp(entry[i].filename, ".") || !strcmp(entry[i].filename, "..")) {
+            free(entry[i].filename);
             continue;
         }
-        sprintf(path_R, "%s/%s\0", path, filename[i]);
+        sprintf(path_R, "%s/%s\0", path, entry[i].filename);
         if (lstat(pathname, &info) == -1) {
-            free(filename[i]);
             continue;
         }
         // printf("%s\n", path_R);
         DIR* dirp = opendir(path_R);
         // 非目录返回上级函数
-        free(filename[i]);
         if (info.st_mode & S_IFDIR) {
             per_R = 1;  // 第一次递归
 
             getdir(path_R);
         }
     }
-    free(filename);
+    free(entry);
 }
 void getfile(char* filename) {
     if (ls_i == 1) {
@@ -317,21 +308,20 @@ void mode_to_letters(int mode, char str[]) {
     if (mode & S_IXOTH)
         str[9] = 'x';
 }
-void sort(char** a, int n) {
+void sort(SUM* a, int n) {
     char temp[PATH_MAX];
     if (ls_t == 1) {
-        char temp[201];
         struct stat info1;
         struct stat info2;
         if (ls_r == 1) {
             for (int i = 0; i < n - 1; i++) {
                 for (int j = i + 1; j < n; j++) {
-                    stat(a[i], &info1);
-                    stat(a[j], &info2);
+                    stat(a[i].filename, &info1);
+                    stat(a[j].filename, &info2);
                     if (info1.st_mtim.tv_sec > info2.st_mtim.tv_sec) {
-                        strcpy(temp, a[i]);
-                        strcpy(a[i], a[j]);
-                        strcpy(a[j], temp);
+                        strcpy(temp, a[i].filename);
+                        strcpy(a[i].filename, a[j].filename);
+                        strcpy(a[j].filename, temp);
                     }
                 }
             }
@@ -339,12 +329,12 @@ void sort(char** a, int n) {
         }
         for (int i = 0; i < n - 1; i++) {
             for (int j = i + 1; j < n; j++) {
-                stat(a[i], &info1);
-                stat(a[j], &info2);
+                stat(a[i].filename, &info1);
+                stat(a[j].filename, &info2);
                 if (info1.st_mtim.tv_sec < info2.st_mtim.tv_sec) {
-                    strcpy(temp, a[i]);
-                    strcpy(a[i], a[j]);
-                    strcpy(a[j], temp);
+                    strcpy(temp, a[i].filename);
+                    strcpy(a[i].filename, a[j].filename);
+                    strcpy(a[j].filename, temp);
                 }
             }
         }
@@ -353,10 +343,10 @@ void sort(char** a, int n) {
     if (ls_r == 1) {
         for (int i = 0; i < n; i++) {
             for (int j = i + 1; j < n; j++) {
-                if (strcmp(a[i], a[j]) < 0) {
-                    strcpy(temp, a[i]);
-                    strcpy(a[i], a[j]);
-                    strcpy(a[j], temp);
+                if (strcmp(a[i].filename, a[j].filename) < 0) {
+                    strcpy(temp, a[i].filename);
+                    strcpy(a[i].filename, a[j].filename);
+                    strcpy(a[j].filename, temp);
                 }
             }
         }
@@ -364,10 +354,10 @@ void sort(char** a, int n) {
     }
     for (int i = 0; i < n; i++) {
         for (int j = i + 1; j < n; j++) {
-            if (strcmp(a[i], a[j]) > 0) {
-                strcpy(temp, a[i]);
-                strcpy(a[i], a[j]);
-                strcpy(a[j], temp);
+            if (strcmp(a[i].filename, a[j].filename) > 0) {
+                strcpy(temp, a[i].filename);
+                strcpy(a[i].filename, a[j].filename);
+                strcpy(a[j].filename, temp);
             }
         }
     }
