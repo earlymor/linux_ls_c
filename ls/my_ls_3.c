@@ -93,6 +93,33 @@ int main(int argc, char** argv) {
     }
 }
 
+void display(char* path) {  // 路径 及参数
+    struct stat info;
+    if (stat(path, &info) != 0) {
+        printf("ls: 无法访问 '%s': 没有那个文件或目录\n", path);
+        exit(1);
+    }
+    if (info.st_mode & S_IFDIR) {  // 目录文件
+
+        getdir(path);
+    } else {
+        getfile(path);
+    }
+}
+void getfile(char* filename) {
+    if (ls_i == 1) {
+        show_inode(filename);
+    }
+    if (ls_s == 1) {
+        show_block(filename);
+    }
+    if (ls_l == 1) {
+        show_info(filename, filename);
+    } else {
+        printf("\033[%d;1m%s  \033[0m", color(filename), filename);
+    }
+    per_r = 1;  // 切换
+}
 void getdir(char path[]) {
     DIR* pdir = opendir(path);
     // 非目录返回上级函数
@@ -160,7 +187,7 @@ void getdir(char path[]) {
     for (int i = 0; ls_R == 1 && i < cnt; i++) {
         if (!strcmp(entry[i].filename, ".") ||
             !strcmp(entry[i].filename, "..")) {
-            free(entry[i].filename);
+            // free(entry[i].filename);
             continue;
         }
         sprintf(path_R, "%s/%s\0", path, entry[i].filename);
@@ -179,20 +206,6 @@ void getdir(char path[]) {
     free(entry);
     entry = NULL;
 }
-void getfile(char* filename) {
-    if (ls_i == 1) {
-        show_inode(filename);
-    }
-    if (ls_s == 1) {
-        show_block(filename);
-    }
-    if (ls_l == 1) {
-        show_info(filename, filename);
-    } else {
-        printf("\033[%d;1m%s  \033[0m", color(filename), filename);
-    }
-    per_r = 1;  // 切换
-}
 
 void show_info(char* path, char* filename) {
     struct stat info;
@@ -200,7 +213,7 @@ void show_info(char* path, char* filename) {
         char modestr[11];
         mode_to_letters(info.st_mode, modestr);
         printf("%s", modestr);
-        printf("%4d ", (int)info.st_nlink);
+        printf("%8d ", (int)info.st_nlink);
         printf("%-8s ", uid_to_name(info.st_uid));
         printf("%-8s ", gid_to_name(info.st_gid));
         printf("%8ld ", (long)info.st_size);
@@ -241,19 +254,6 @@ void paramAnaly(char* argv, int i) {
     }
 }
 
-void display(char* path) {  // 路径 及参数
-    struct stat info;
-    if (stat(path, &info) != 0) {
-        printf("ls: 无法访问 '%s': 没有那个文件或目录\n", path);
-        exit(1);
-    }
-    if (info.st_mode & S_IFDIR) {  // 目录文件
-
-        getdir(path);
-    } else {
-        getfile(path);
-    }
-}
 char* gid_to_name(gid_t gid) {
     struct group* grp_ptr;
     static char numstr[10];
@@ -281,12 +281,19 @@ int color(char* path) {
         return 34;
     } else if (S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
         return 32;
-    } else if (S_ISLNK(st.st_mode))
+    } else if (S_ISLNK(st.st_mode)) {
         return 36;
+    } else if (S_ISCHR(st.st_mode)) {
+        return 33;
+    }
     return 37;
 }
 void mode_to_letters(int mode, char str[]) {
     strcpy(str, "----------");
+    if (S_ISFIFO(mode))
+        str[0] = 'p';
+    if (S_ISSOCK(mode))
+        str[0] = 's';
     if (S_ISDIR(mode))
         str[0] = 'd';
     if (S_ISCHR(mode))
@@ -370,10 +377,10 @@ void sort(SUM* a, int n) {
 void show_block(char* pathname) {
     struct stat info;
     stat(pathname, &info);
-    printf("%d ", info.st_blocks / 2);
+    printf("%8d ", info.st_blocks / 2);
 }
 void show_inode(char* pathname) {
     struct stat info;
     lstat(pathname, &info);
-    printf("%d ", info.st_ino);
+    printf("%-8d ", info.st_ino);
 }
